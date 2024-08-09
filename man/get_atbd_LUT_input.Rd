@@ -5,7 +5,7 @@
 \title{This function provides a LUT corresponding to PROSAIL input parameters to
 reproduce the distribution of parameters used in the ATBD}
 \usage{
-get_atbd_LUT_input(nbSamples = 2000, GeomAcq = NULL, Codist_LAI = TRUE)
+get_atbd_LUT_input(nbSamples = 2000, GeomAcq = NULL, use_codist_LAI = TRUE)
 }
 \arguments{
 \item{nbSamples}{numeric. number of samples to generate}

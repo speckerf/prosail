@@ -12,7 +12,11 @@ Generate_LUT_PROSAIL(
   SpecATM,
   BandNames = NULL,
   SAILversion = "4SAIL",
-  BrownLOP = NULL
+  BrownLOP = NULL,
+  useCustomSoil = FALSE,
+  customSoilSpec = NULL,
+  customSoilProba = NULL,
+  alwaysUseProsailWet = FALSE
 )
 }
 \arguments{

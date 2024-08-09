@@ -21,7 +21,7 @@
 #' @importFrom truncnorm rtruncnorm
 #' @export
 
-get_atbd_LUT_input <- function(nbSamples = 2000, GeomAcq = NULL, Codist_LAI = TRUE){
+get_atbd_LUT_input <- function(nbSamples = 2000, GeomAcq = NULL, use_codist_LAI = TRUE){
   # define paremertization for truncated gaussians
   TgaussParms <- list()
   TgaussParms$min <- data.frame('lai' = 0, 'LIDFa' = 30, 'q' = 0.1, 'N' = 1.2,
@@ -37,6 +37,7 @@ get_atbd_LUT_input <- function(nbSamples = 2000, GeomAcq = NULL, Codist_LAI = TR
                                'CHL' = 30, 'LMA' = 0.005, 'Cw_rel' = 0.08,
                                'BROWN' = 0.30, 'psoil' = 0.6)
 
+
   # get distribution corresponding to gaussians
   InputPROSAIL <- list()
   for (parm in names(TgaussParms$min)){
@@ -50,7 +51,7 @@ get_atbd_LUT_input <- function(nbSamples = 2000, GeomAcq = NULL, Codist_LAI = TR
   InputPROSAIL <- data.frame(InputPROSAIL)
 
   # define co-distribution with LAI
-  if (Codist_LAI==TRUE){
+  if (use_codist_LAI==TRUE){
     Codist_LAI <- list()
     Codist_LAI$Vmin0 <- data.frame('LIDFa' = 30, 'q' = 0.1, 'N' = 1.2,
                                    'CHL' = 20, 'LMA' = 0.003, 'Cw_rel' = 0.6,
@@ -114,6 +115,148 @@ get_atbd_LUT_input <- function(nbSamples = 2000, GeomAcq = NULL, Codist_LAI = TR
   InputPROSAIL$alpha <- 40
   return(InputPROSAIL)
 }
+
+#' Title
+#'
+#' @param nbSamples
+#' @param use_codist_LAI
+#' @param insitu_foliar
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_LUT_wan_2024_CHL <- function(nbSamples = 2000){
+
+    TgaussParms <- list()
+  TgaussParms$min <- data.frame('lai' = 0, 'LIDFa' = 30, 'N' = 1, 'LMA' = 0.001,
+                                'psoil' = 0, 'CHL' = 5, 'CAR' = 0)
+  TgaussParms$max <- data.frame('lai' = 9, 'LIDFa' = 70, 'N' = 3, 'LMA' = 0.05,
+                                'psoil' = 1, 'CHL' = 100, 'CAR' = 15)
+  TgaussParms$mean <- data.frame('lai' = 4.5, 'LIDFa' = 50, 'N' = 1.5, 'LMA' = 0.025,
+                                 'psoil' = 0.5, 'CHL' = 45, 'CAR' = 7)
+  TgaussParms$sd <- data.frame('lai' = 4, 'LIDFa' = 7, 'N' = 0.5, 'LMA' = 0.02,
+                               'psoil' = 0.25, 'CHL' = 20, 'CAR' = 3)
+
+  InputPROSAIL <- insitu_foliar
+  for (parm in names(TgaussParms$min)){
+    set.seed(42)
+    InputPROSAIL[[parm]] <- truncnorm::rtruncnorm(n = nrow(insitu_foliar),
+                                                  a = TgaussParms$min[[parm]],
+                                                  b = TgaussParms$max[[parm]],
+                                                  mean = TgaussParms$mean[[parm]],
+                                                  sd = TgaussParms$sd[[parm]])
+  }
+
+
+  # default values
+  InputPROSAIL$TypeLidf <- 2
+  InputPROSAIL$alpha <- 40
+
+  if(nbSamples < nrow(InputPROSAIL)){
+    return(InputPROSAIL[sample(1:nrow(InputPROSAIL), nbSamples),])
+  } else{
+    warning("nbSamples is greater than the number of rows in the filtered foliar input data. Upsampling data...")
+    return(InputPROSAIL %>% dplyr::slice_sample(n = nbSamples, replace = TRUE))
+  }
+}
+
+
+
+#' Title
+#'
+#' @param nbSamples
+#' @param use_codist_LAI
+#' @param insitu_foliar
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_insitu_LUT_input <- function(nbSamples = 2000, use_codist_LAI = TRUE, insitu_foliar = NULL){
+  if (is.null(insitu_foliar)) {
+    stop("insitu_foliar input required")
+  }
+  assertthat::assert_that(all(c('EWT', 'LMA', 'CAR', 'CHL', 'Cw_rel') %in% colnames(insitu_foliar)))
+  # input should look like: (without any NA's)
+  # A tibble: 100,000 × 5
+  # CHL     LMA     EWT   CAR Cw_rel
+  # <dbl>   <dbl>   <dbl> <dbl>  <dbl>
+  # 1  61.5 0.0177  0.0259  14.1   0.594
+  # 2  31.0 0.0175  0.0118   9.79  0.403
+  # 3  45.7 0.0142  0.0155  11.6   0.521
+  # 4  25.3 0.00361 0.00538  5.72  0.599
+  # 5  47.6 0.0172  0.0155   8.86  0.473
+  # 6  73.9 0.0281  0.0390  15.5   0.582
+
+
+  TgaussParms <- list()
+  TgaussParms$min <- data.frame('lai' = 0, 'LIDFa' = 30, 'q' = 0.1, 'N' = 1.2,
+                                'BROWN' = 0.0, 'psoil' = 0)
+  TgaussParms$max <- data.frame('lai' = 15, 'LIDFa' = 80, 'q' = 0.5, 'N' = 1.8,
+                                'BROWN' = 2.0, 'psoil' = 1)
+  TgaussParms$mean <- data.frame('lai' = 2, 'LIDFa' = 60, 'q' = 0.2, 'N' = 1.5,
+                                 'BROWN' = 0.0, 'psoil' = 0.25)
+  TgaussParms$sd <- data.frame('lai' = 3, 'LIDFa' = 30, 'q' = 0.5, 'N' = 0.3,
+                               'BROWN' = 0.30, 'psoil' = 0.6)
+
+  InputPROSAIL <- insitu_foliar
+  for (parm in names(TgaussParms$min)){
+    set.seed(42)
+    InputPROSAIL[[parm]] <- truncnorm::rtruncnorm(n = nrow(insitu_foliar),
+                                                  a = TgaussParms$min[[parm]],
+                                                  b = TgaussParms$max[[parm]],
+                                                  mean = TgaussParms$mean[[parm]],
+                                                  sd = TgaussParms$sd[[parm]])
+  }
+
+  if(use_codist_LAI){
+    Codist_LAI <- list()
+    Codist_LAI$Vmin0 <- data.frame('LIDFa' = 30, 'q' = 0.1, 'N' = 1.2,
+                                   'CHL' = 20, 'Cw_rel' = 0.5,
+                                   'BROWN' = 0.0, 'psoil' = 0)
+    Codist_LAI$Vmax0 <- data.frame('LIDFa' = 80, 'q' = 0.5, 'N' = 1.8,
+                                   'CHL' = 90, 'Cw_rel' = 0.85,
+                                   'BROWN' = 2.0, 'psoil' = 1)
+    Codist_LAI$VminLAImax <- data.frame('LIDFa' = 55, 'q' = 0.1, 'N' = 1.3,
+                                        'CHL' = 45, 'Cw_rel' = 0.65,
+                                        'BROWN' = 0.0, 'psoil' = 0)
+    Codist_LAI$VmaxLAImax <- data.frame('LIDFa' = 65, 'q' = 0.5, 'N' = 1.8,
+                                        'CHL' = 90, 'Cw_rel' = 0.80,
+                                        'BROWN' = 0.2, 'psoil' = 0.4)
+    ## CHANGED HERE: Not assess codistribution for LMA: because range of max 0.011 is well below
+    # what the range in insitu_foliar is (going to around 0.35)
+    InputPROSAIL_Copy <- InputPROSAIL
+    InputPROSAIL_Copy[['index']] <- seq(1, nrow(InputPROSAIL_Copy))
+    for(param in names(Codist_LAI$Vmin0)){
+      InputPROSAIL_Copy[paste0('laibased_min_', param)] <- Codist_LAI$Vmin0[[param]] + (InputPROSAIL_Copy[['lai']]*(Codist_LAI$VminLAImax[[param]] - Codist_LAI$Vmin0[[param]])/TgaussParms$max$lai)
+      InputPROSAIL_Copy[paste0('laibased_max_', param)] <- Codist_LAI$Vmax0[[param]] + (InputPROSAIL_Copy[['lai']]*(Codist_LAI$VmaxLAImax[[param]] - Codist_LAI$Vmax0[[param]])/TgaussParms$max$lai)
+    }
+
+    for(param in names(Codist_LAI$Vmin0)) {
+      min_col <- dplyr::sym(paste0('laibased_min_', param))
+      max_col <- dplyr::sym(paste0('laibased_max_', param))
+      param_col <- dplyr::sym(param)
+
+      InputPROSAIL_Copy <- InputPROSAIL_Copy %>%
+        dplyr::filter((!!min_col < !!param_col) & (!!param_col < !!max_col))
+    }
+
+    InputPROSAIL <- InputPROSAIL_Copy %>%
+      dplyr::select(colnames(InputPROSAIL))
+  }
+  # default values
+  InputPROSAIL$TypeLidf <- 2
+  InputPROSAIL$alpha <- 40
+
+  if(nbSamples < nrow(InputPROSAIL)){
+    return(InputPROSAIL[sample(1:nrow(InputPROSAIL), nbSamples),])
+  } else{
+    warning("nbSamples is greater than the number of rows in the filtered foliar input data. Upsampling data...")
+    return(InputPROSAIL %>% dplyr::slice_sample(n = nbSamples, replace = TRUE))
+  }
+}
+
 
 #' This function adjusts variable values based on co-distribution rules as
 #' defined in ATBD co-distributions are all related to LAI
@@ -579,7 +722,9 @@ Generate_LUT_BRF <- function(InputPROSAIL, SpecPROSPECT, SpecSOIL, SpecATM,
 
 Generate_LUT_PROSAIL <- function(InputPROSAIL, SpecPROSPECT,
                                  SpecSOIL, SpecATM, BandNames = NULL,
-                                 SAILversion='4SAIL', BrownLOP = NULL){
+                                 SAILversion='4SAIL', BrownLOP = NULL,
+                                 useCustomSoil = FALSE, customSoilSpec = NULL,
+                                 customSoilProba = NULL, alwaysUseProsailWet = FALSE){
 
   nbSamples <- length(InputPROSAIL[[1]])
   BRF <- list()
@@ -588,9 +733,29 @@ Generate_LUT_PROSAIL <- function(InputPROSAIL, SpecPROSPECT,
   pb <- progress_bar$new(
     format = "Generate LUT [:bar] :percent in :elapsed",
     total = 10, clear = FALSE, width= 100)
+  if(useCustomSoil){
+    if(is.null(customSoilSpec)) stop('Please provide parameter customSoilSpec when useCustomSoil = TRUE')
+    if(is.null(customSoilProba)) stop('Please provide parameter customSoilProba when useCustomSoil = TRUE')
+  }
   for (i in seq_len(nbSamples)){
     if (i %% Split == 0 & nbSamples>100) pb$tick()
-    rsoil <- InputPROSAIL[i,]$psoil*SpecSOIL$Dry_Soil+(1-InputPROSAIL[i,]$psoil)*SpecSOIL$Wet_Soil
+    if(useCustomSoil){
+      if(runif(1) > customSoilProba){ # 1 - customSoilFrac: chance of original soil reflectance
+        # original way of getting rsoil
+        rsoil <- InputPROSAIL$psoil[[i]]*SpecSOIL$Dry_Soil+(1-InputPROSAIL$psoil[[i]])*SpecSOIL$Wet_Soil
+      } else { # new way: linear combination of two random soil samples.
+        if(alwaysUseProsailWet){
+          sample_index <- sample(2:ncol(customSoilSpec), 1)
+          rsoil <- InputPROSAIL$psoil[[i]] * customSoilSpec[[sample_index]] + (1-InputPROSAIL$psoil[[i]]) * SpecSOIL$Wet_Soil
+        } else{
+          sample_indices <- sample(2:ncol(customSoilSpec), 2, replace = TRUE)
+          rsoil <- InputPROSAIL$psoil[[i]] * customSoilSpec[[sample_indices[1]]] + (1-InputPROSAIL$psoil[[i]]) * customSoilSpec[[sample_indices[2]]]
+        }
+        }
+    } else{
+      # original way of getting rsoil
+      rsoil <- InputPROSAIL$psoil[[i]]*SpecSOIL$Dry_Soil+(1-InputPROSAIL$psoil[[i]])*SpecSOIL$Wet_Soil
+    }
     # if 4SAIL
     if (SAILversion=='4SAIL'){
       RefSAIL <- PRO4SAIL(Spec_Sensor = SpecPROSPECT,

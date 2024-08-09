@@ -35,7 +35,9 @@ Imports:
     progress,
     prospect,
     XML,
-    truncnorm
+    truncnorm,
+    assertthat,
+    dplyr
 Remotes: github::jbferet/prospect
 VignetteBuilder: knitr
 URL: https://gitlab.com/jbferet/prosail
