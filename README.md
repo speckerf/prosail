@@ -1,3 +1,5 @@
+this repo is a fork of: [prosail](https://github.com/jbferet/prosail)
+
 # __prosail__ <img src="man/figures/logo.png" align="right" alt="" width="200" />
 
 # An R package for the simulation of canopy reflectance using the model PROSAIL (PROSPECT+SAIL).
